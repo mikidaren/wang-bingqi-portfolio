@@ -41,6 +41,32 @@ npm run deploy
 
 ---
 
+## 📦 源码仓库（GitHub）
+
+| 仓库 | 内容 | 推送后的效果 |
+|---|---|---|
+| `mikidaren/wang-bingqi-portfolio` | 主站源码（本目录） | **不会自动部署**，需手动 `npm run deploy` |
+| `mikidaren/wang-bingqi-studio` | Studio 子站（`wang-bingqi-studio/`） | **自动部署**（Cloudflare Pages 已接 Git，push main 即构建上线） |
+
+两个仓库都是 **public**、默认分支 `main`、各自独立。
+
+### 推送
+
+```bash
+# 主站
+cd "E:\Code\项目1-作品集网站" && git add -A && git commit -m "..." && git push
+
+# Studio
+cd "E:\Code\项目1-作品集网站\wang-bingqi-studio" && git add -A && git commit -m "..." && git push
+```
+
+凭据存在 `C:\Users\mikid\.git-credentials`（家目录，不在项目内），两个仓库都设了仓库级 `credential.helper=store`。
+**remote URL 里不含 Token**，别把 Token 拼进 URL。
+
+> 网络抖动（代理环境）：报 `schannel: failed to receive handshake`、`Empty reply from server`、`RPC failed; curl 55` 这类错误都是抖动，**直接重推**即可。判断成功要看 `git ls-remote origin refs/heads/main` 是否等于 `git rev-parse HEAD`，别信退出码。
+
+---
+
 ## 🔧 本地开发
 
 ```bash
@@ -120,8 +146,9 @@ find dist.old-* -type f -delete && find dist.old-* -depth -type d -empty -delete
 | nic.eu.org | 域名注册（handle `WB770-FREE`，密码见上归档） |
 | Cloudflare | 托管 + DNS（账号 mikidaren@gmail.com） |
 | Cloudflare **Worker** | `wang-bingqi-portfolio` → `miki2022.eu.org`（静态资源，无绑定） |
-| Cloudflare **Pages** | `wang-bingqi-studio` → `studio.miki2022.eu.org`（Decap CMS） |
-| Vercel | `pascal-editor` → `editor.miki2022.eu.org` |
+| Cloudflare **Pages** | `wang-bingqi-studio` → `studio.miki2022.eu.org`（Decap CMS，接 GitHub 自动部署） |
+| GitHub | `mikidaren/wang-bingqi-portfolio`、`mikidaren/wang-bingqi-studio`（均 public） |
+| Vercel | `pascal-editor` → `editor.miki2022.eu.org`（**已从 Studio 移除入口，项目本身仍在**） |
 
 ---
 

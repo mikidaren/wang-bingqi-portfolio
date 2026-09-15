@@ -281,3 +281,87 @@ wrangler versions list     # 查看历史版本
 
 > 注意：版本 6 是未修复的旧构建（含 `王冰琦` 错字、已删的 GBA 奖项、CEEDI 旧职位），仅作为技术回滚点，不应对外使用。
 
+---
+
+## 十、版本控制与 Studio 改造（2026-09-15 已完成 ✅）
+
+### 10.1 推送到 GitHub
+
+| 项 | 值 |
+|---|---|
+| 主站仓库 | `mikidaren/wang-bingqi-portfolio`（public）← 新建，远端 `5d35359` |
+| Studio 仓库 | `mikidaren/wang-bingqi-studio`（public）← 已有，远端 `f2d618a` |
+| 主站远端文件数 | 81（= 本地 `git ls-files` 81，无遗漏）✅ |
+| Studio 远端文件数 | 26 ✅ |
+
+**凭据落点**：`C:\Users\mikid\.git-credentials`（家目录），两个仓库各设**仓库级** `credential.helper=store`。
+
+- 全局 `credential.helper` 是本机的 `git-credential-manager.exe`（交互式），在自动化会话里不可用，故用仓库级覆盖，**未改动全局配置**。
+- **remote URL 内不嵌 Token**（否则明文躺在 `.git/config`，项目一旦打包分享即泄露）。
+- `gh` CLI 本机未安装 → 建仓/查权限一律走 REST API。
+
+### 10.2 Studio 远端历史处理（关键决策）
+
+Studio 远端已有 **9 次提交**（`4f5820c0`），本地是重建后的**独立历史**。直接 push 会 non-fast-forward，force push 会抹掉远端历史。
+
+处理方式：**`git reset --soft 4f5820c0` → `git add -A` → 一次提交**，把本地内容作为第 10 次提交叠加在远端历史之上。
+
+- 结果：远端 9 次历史完整保留 + 新增 1 次提交，**线性、fast-forward、无 force push**、无合并提交。
+- 前置校验：`comm -23 <(远端树) <(本地文件)` 为空 → 确认远端无独有文件，不会丢内容。
+- 未采用 `git rebase --onto --root`（会产生大量 add/add 冲突）、也未用 `git merge -s ours`（多余合并提交）。
+
+### 10.3 Studio 改造内容
+
+| 改动 | 说明 |
+|---|---|
+| **新增 Grasshopper 模块** | `/grasshopper` 页面 + `public/grasshopper/` 下 3 个 `.gh`（参数化外立面四合一表皮 1.4 MB、幕墙石材分缝 9 KB、桥纯参数化方案 810 KB）与 2 张预览图 |
+| 文件名 ASCII 化 | 原中文名含空格与多层点号，URL 难读 → 改为 `facade-4in1-skin` / `curtain-wall-stone-joint` / `bridge-parametric`，中文名保留在页面标题 |
+| **移除 Pascal Editor** | `Base.astro` 删掉顶部 Tools 下拉（唯一项就是 Pascal Editor），`global.css` 清理 `.top-bar-tools` / `.tools-trigger` / `.tools-menu` 无用样式，导航改为加入 Grasshopper |
+| README 修正 | 域名 `studio.wangbingqi.eu.org` → `studio.miki2022.eu.org`（10 处）、补充 grasshopper 维护说明、删除引用已作废 GBA 竞赛的分类描述 |
+| 构建验证 | `npm run build` 通过，生成 `/grasshopper/index.html`；源码与产物中已无 `pascal` 字样 |
+
+**未推送的 cache 内容（有意为之）**：
+
+- `cache/Miki自用插件/`：AeroField-0.2.10-beta（含第三方 LICENSE）、GG Sculpting 2.5.0（`.rhi` / `.rui`）—— **第三方插件安装包，版权属原作者，不适合放进 public 仓库再分发**；也不属于"自己的 gh 文件"。
+- `cache/媒体1.mp4`（3.6 MB）：来源与内容不明，未推。需要的话说明用途再处理。
+
+> cache 目录本身保留未动（未删除任何文件）。
+
+### 10.4 部署结果（Studio）
+
+Studio 的 Cloudflare Pages **已接 GitHub**（`source.type: github`，`production_branch: main`），推送即为部署：
+
+| 项 | 值 |
+|---|---|
+| 触发方式 | `github:push`，commit `f2d618a` |
+| 部署状态 | `deploy success`（07:44:21）✅ |
+| `/grasshopper/` | HTTP 200，标题 `Grasshopper — WANG Bingqi · Studio` ✅ |
+| 3 个 `.gh` 下载 | 全部 HTTP 200，**MD5 与本地逐字节一致** ✅ |
+| 2 张预览图 | HTTP 200，MD5 一致 ✅ |
+| 首页导航 | 含 `Grasshopper` ✅｜`Pascal` 0 处 ✅｜`editor.miki2022` 0 处 ✅ |
+
+### 10.5 网络抖动（同 9.5 的坑，GitHub 侧一样）
+
+推送期间遇到 4 类报错，**全是代理抖动，与仓库无关**：
+
+```
+schannel: failed to receive handshake, SSL/TLS connection failed
+fatal: unable to access ...: Empty reply from server
+error: RPC failed; curl 55 Send failure: Connection was reset
+error: RPC failed; curl 7 CONNECT tunnel failed, response 502
+```
+
+对策：循环重试 + **用 `git ls-remote` 比对远端 HEAD 与本地 HEAD 判断成功**，不要看退出码。
+
+### 10.6 环境限制记录（沙箱）
+
+- **`.git/refs/remotes/**` 写不进去**：`git fetch` 输出了 `* [new branch] main -> origin/main`、`git update-ref` 也报成功，但目录始终不存在，`git rev-parse origin/main` 一直 ambiguous。
+  → 绕法：不用远程跟踪引用，直接 `SHA=$(awk '{print $1}' .git/FETCH_HEAD | head -1)` 拿 SHA 操作。
+- 往 `/tmp` 落盘被拦 → 用项目内临时目录或直接管道输出。
+
+### 10.7 待办
+
+1. **主站不会自动部署**：push 后仍需 `npm run build && npm run deploy`（Worker 侧未接 Git）。
+2. **Vercel `pascal-editor` 项目仍在**：本次只移除了 Studio 里的入口链接，`editor.miki2022.eu.org` 本身还能访问。要彻底下线需去 Vercel 删除项目。
+3. Cache 目录中未推送的文件（第三方插件、mp4）如需处理请明示。
+

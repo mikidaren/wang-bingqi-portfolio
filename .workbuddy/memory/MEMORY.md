@@ -79,11 +79,31 @@ curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/wo
 
 **DNS 特征判别法**：Worker 自定义域名用占位记录（`A 192.0.2.1` / `AAAA 100::`），Pages 自定义域名用 `CNAME → <项目>.pages.dev`。
 
-## 版本控制
+## 版本控制与 GitHub（2026-09-15 已推送）
 
-主站与 studio 各自独立 git 仓库（2026-09-15 初始化）。仓库级 identity：`WANG Bingqi` / `mikidaren@gmail.com`。均**未配置 remote、未推送**。
+| 仓库 | 内容 | 推送后 |
+|---|---|---|
+| `mikidaren/wang-bingqi-portfolio` | 主站源码（public） | **不自动部署**，仍需 `npm run deploy` |
+| `mikidaren/wang-bingqi-studio` | Studio 子站（public） | **自动部署**（Pages 接 GitHub，push main 即构建上线） |
+
+- 仓库级 identity：`WANG Bingqi` / `mikidaren@gmail.com`（全局配置为空，未改动）
+- 凭据：`C:\Users\mikid\.git-credentials`（家目录），两仓库各设**仓库级** `credential.helper=store`（全局是交互式 `git-credential-manager.exe`，自动化下不可用）
+- **remote URL 内不嵌 Token**；`gh` CLI 未安装，建仓走 REST API
+- Studio 远端原有 9 次提交（`4f5820c0`），本地为独立历史 → 用 **`git reset --soft <远端SHA>` + 一次提交** 接入（线性 fast-forward，未 force push，远端历史完整保留）
+
+### GitHub 推送踩坑
+
+报错 `schannel: failed to receive handshake` / `Empty reply from server` / `RPC failed; curl 55` / `curl 7 CONNECT tunnel failed` **全是代理抖动**，直接重推。判断成功用 `git ls-remote origin refs/heads/main` == `git rev-parse HEAD`，**不要看退出码**。
+
+**沙箱限制**：`.git/refs/remotes/**` 写不进去（fetch 显示 `[new branch]`、`update-ref` 报成功，但目录始终不存在）→ 不用远程跟踪引用，直接 `SHA=$(awk '{print $1}' .git/FETCH_HEAD | head -1)` 取 SHA。
 
 `.gitignore` 排除：`node_modules/` `dist/` `cache/` `*.pdf` `miki的照片/` `miki的获奖图片/`，主站侧另排除 `wang-bingqi-studio/`（子项目独立仓库）。
+
+## Studio 子站（2026-09-15 改造）
+
+- **Grasshopper 模块**：`/grasshopper` 页面（`src/pages/grasshopper/index.astro`，页首 `definitions` 数组维护条目）+ `public/grasshopper/` 下 3 个 `.gh`（`facade-4in1-skin` / `curtain-wall-stone-joint` / `bridge-parametric`）与 2 张预览图。**文件名统一 ASCII**，中文名写在页面 `title`。
+- **Pascal Editor 已从 Studio 移除**：`Base.astro` 顶部 Tools 下拉删除、`global.css` 清理 `.top-bar-tools/.tools-trigger/.tools-menu`、导航加入 Grasshopper。**但 Vercel 上 `pascal-editor` 项目仍在**（`editor.miki2022.eu.org` 仍可访问），要彻底下线需去 Vercel 删项目。
+- Studio README 域名已统一为 `studio.miki2022.eu.org`（原 `wangbingqi.eu.org` 已作废）。
 
 ## 凭据位置
 
