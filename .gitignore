@@ -1,0 +1,23 @@
+# ===== 依赖 =====
+node_modules/
+
+# ===== 构建产物（上传 Cloudflare 用，可从源码重建）=====
+dist/
+tsconfig.tsbuildinfo
+
+# ===== 素材缓存区（待处理，处理完清空）=====
+cache/
+
+# ===== 原始大文件（已转 webp 存入 public/assets）=====
+miki的照片/
+miki的获奖图片/
+*.pdf
+
+# ===== 子项目（独立 git 仓库，见 wang-bingqi-studio/.gitignore）=====
+wang-bingqi-studio/
+
+# ===== 系统 / 编辑器 =====
+.DS_Store
+Thumbs.db
+*.local
+*.log

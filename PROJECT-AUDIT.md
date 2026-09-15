@@ -1,0 +1,174 @@
+# 作品集网站 — 项目结构检查报告
+
+**检查日期**：2026-09-15
+**检查范围**：`E:\Code\项目1-作品集网站`（含 `wang-bingqi-studio/` 子项目）
+**参考资料**：ReasonX 归档 `E:\DATA\Workbuddy储存\2026-09-01-14-40-57\.workbuddy\memory\imported-reasonix-global\`
+
+---
+
+## 一、项目定位
+
+WANG Bingqi（王炳琪）的个人作品集网站，围绕「计算建筑设计师」身份呈现：参数化结构、数字建造、AI 辅助设计、竞赛导向公共空间项目。项目于 **2026-05-29** 由 ReasonX 会话（`desktop-202605291733-1`，会话摘要"个人站"，1634 条消息，$1.854）从零搭建。
+
+| 项目 | 技术栈 | 部署 | 域名 |
+|---|---|---|---|
+| 主站（作品集） | Vite 6 + React 19 + Tailwind 4 + framer-motion | Cloudflare Pages `wang-bingqi-portfolio` | https://miki2022.eu.org |
+| 子站（Studio 笔记） | Astro 4 + Decap CMS + Pages Functions | Cloudflare Pages `wang-bingqi-studio` | https://studio.miki2022.eu.org |
+| 备用域名 | — | nic.eu.org 审核中 | wangbingqi.eu.org |
+
+---
+
+## 二、目录结构
+
+```
+E:\Code\项目1-作品集网站\            总计 446 MB
+├── index.html                      Vite 入口（含 SEO / OG 标签）
+├── package.json                    依赖清单
+├── vite.config.ts                  react + tailwindcss 插件
+├── tsconfig.json                   ES2022 / strict
+├── start.bat                       本地开发启动脚本
+├── README.md                       项目说明（含账号密码）
+├── check_nic.py                    nic.eu.org 域名状态查询脚本
+├── submit_domain.py                nic.eu.org 域名提交脚本
+│
+├── src/                            87 KB，1317 行
+│   ├── main.tsx / App.tsx          入口 + 五个编号分节（01–05）
+│   ├── index.css                   Tailwind 4 @theme 设计变量
+│   ├── components/                 9 个组件
+│   │   ├── Hero.tsx                首屏封面
+│   │   ├── Navbar.tsx              导航栏（滚动响应）
+│   │   ├── LangSwitcher.tsx        三语切换
+│   │   ├── About.tsx               个人简介
+│   │   ├── Projects.tsx   (367行)  作品展示，8 个项目全宽瀑布流
+│   │   ├── CV.tsx         (247行)  履历时间线 + 荣誉 + 导师/证书展开
+│   │   ├── Skills.tsx              技能标签（4 组）
+│   │   ├── Contact.tsx             联系方式
+│   │   └── Footer.tsx              页脚
+│   └── i18n/                       三语文本
+│       ├── context.tsx             Provider + useTranslate
+│       ├── en.ts (87行) / zh-cn.ts (74行) / zh-tw.ts (74行)
+│
+├── public/assets/                  49 张图，9.7 MB（全部为优化后 webp/jpg）
+├── dist/                           11 MB，构建产物 ← 上传 Cloudflare 的就是这个
+├── cache/                          17 MB，待处理素材区
+│   ├── *.gh                        Grasshopper 参数化文件 ×3
+│   ├── 媒体1.mp4                   3.6 MB
+│   └── Miki自用插件/               aerofield 插件包 + sculpting test
+├── node_modules/                   189 MB
+│
+├── wang-bingqi-studio/             Astro 子项目
+│   ├── public/admin/config.yml     Decap CMS 后台配置
+│   ├── functions/auth.js            GitHub OAuth 入口（Pages Function）
+│   ├── functions/auth/callback.js   OAuth 回调
+│   └── src/pages/                  首页 / 分类 / 文章 / 404
+│
+├── WANG Bingqi_CV.pdf              154 KB
+├── WANG Bingqi_作品集.pdf          58 MB
+├── miki的照片/                     9 MB（原始自拍）
+└── miki的获奖图片/                 14 MB（原始证书 PNG）
+```
+
+---
+
+## 三、设计系统
+
+暗黑 / 粗野主义（Hernan Diaz Alonso 风格），由 `src/index.css` 的 `@theme` 定义：
+
+| 变量 | 值 | 用途 |
+|---|---|---|
+| `--color-bg` | `#0a0a0a` | 主背景（近黑） |
+| `--color-surface` | `#141414` | 卡片 / 浮层 |
+| `--color-border` | `#2a2a2a` | 分割线 |
+| `--color-accent` | `#f0f0f0` | 主文字 |
+| `--color-muted` | `#888888` | 次要文字 |
+| `--font-sans` | Inter / Helvetica Neue | 正文 |
+| `--font-mono` | JetBrains Mono | 编号、标签 |
+
+页面结构：Hero → 01 About → 02 Projects → 03 CV → 04 Skills → 05 Contact，分节间用 1px 硬分割线。动效统一为 `framer-motion` 的 `whileInView`（位移 40px 淡入，逐节延迟 0.1s，`once: true`）。
+
+---
+
+## 四、内容资产
+
+**Projects（8 个）**
+1. Dalian Maritime Museum — 2024
+2. Frankfurt Temporary Theater — 2024
+3. Floating Feather Pavilion — 2025（二等奖 + 风动艺术奖）
+4. Digital Fabrication Research — 2025
+5. M.Arch Final Project（CityU 毕业设计）— 2026
+6. Bionic Human Communication Center
+7. Wah Fu Estate Community Hub
+8. Shandong Stadium Competition Entry
+
+**CV 时间线（4 段）**：CEEDI（2026–）｜CityU M.Arch（2024–2026）｜KFS Architects 上海（2020–2021）｜河北工业大学 B.Arch（2017–2022）
+
+**荣誉（4 项）**：GBA Urban Design Awards 2026｜Digital FUTURES 2025｜IFoU Winter School 2025｜Floating Feather Pavilion 2025
+
+**导师模块**：Zou Jingyu、Zheng Hao（CityU）、Li Dexin（河北工大）、Hernan Diaz Alonso（SCI-Arc），含照片与长简介。
+
+---
+
+## 五、资源一致性检查 ✅
+
+| 检查项 | 结果 |
+|---|---|
+| `public/assets` 文件数 | 49 |
+| 被源码引用但缺失的图 | **0**（全部齐全） |
+| 存在于 assets 但未被引用 | **0**（无冗余） |
+| `dist/assets` 与 `public/assets` 差异 | 仅多出 `index-*.js` / `index-*.css` 构建产物，一致 |
+| `src` 与 `dist` 同步性 | 无源文件比 `dist/index.html` 更新，**dist 是最新的** |
+
+---
+
+## 六、发现的问题（按优先级）
+
+### 🔴 P0 — 姓名错字（内容硬伤）
+```
+src/i18n/zh-cn.ts:66   'footer.copyright': '© {year} 王冰琦。保留所有权利。'
+src/i18n/zh-tw.ts:66   'footer.copyright': '© {year} 王冰琦。保留所有權利。'
+```
+用户姓名正确写法是 **王炳琪**（`王炳琪`，非「王冰琦」）。简体与繁体页脚均写错，英文版 `en.ts:78`（`WANG Bingqi`）无此问题。这个错字出现在**每个访问者都能看到的页面底部**，属最高优先修复项。
+
+### 🟠 P1 — CV 职位表述过时
+```
+src/components/CV.tsx:3-7
+  period: '2026 – Present',
+  title: 'Architectural Intern',
+  org: 'China Electronics Engineering Design Institute (CEEDI)',
+  details: 'CEEDI. Internship in architectural design and digital practice...'
+```
+按 ReasonX 档案与用户现状，CEEDI 身份已是 **Architectural Designer**（非 Intern），且 1999-09 出生、2026 年 26 岁、硕士毕业入职。此处会让招聘方误判资历层级，建议同步修正标题与 details 描述。
+
+### 🟠 P1 — 无版本控制
+主站与 `wang-bingqi-studio/` 执行 `git status` 均返回 `fatal: not a git repository`。两个项目都**没有任何 git 历史**，且 `dist/`、`node_modules/` 混在同一目录。一旦改错无法回滚。
+
+### 🟡 P2 — README 明文密码
+`README.md:75-82` 以表格形式直接记录 nic.eu.org 与 Cloudflare 的账号密码。该项目目录体积达 446 MB、含 58 MB 的 PDF 作品集，分享或打包时极易连带泄露。建议移到本地密钥文件或归档（归档中已有 `wang-bingqi-accounts.md` 承担这一职责）。
+
+### 🟡 P2 — Studio 站点域名不一致
+| 位置 | 值 |
+|---|---|
+| `wang-bingqi-studio/astro.config.mjs` | `site: 'https://studio.wangbingqi.eu.org'` |
+| `admin/config.yml` | `base_url: https://studio.miki2022.eu.org` |
+| 实际部署 | studio.miki2022.eu.org |
+
+`astro.config.mjs` 的 canonical site 与真实域名不符，会影响 sitemap / 绝对链接生成。
+
+### 🟡 P2 — README 结构描述过时
+README 中列的 `portrait-bw.jpg`、`page*.png/webp` 实际不存在——自拍与奖状都已转成 `.webp`。README 的「项目结构」段落与磁盘现状不符。
+
+### 🔵 P3 — 大二进制文件混在项目内
+`WANG Bingqi_作品集.pdf` 58 MB、`miki的获奖图片/` 14 MB、`miki的照片/` 9 MB、`cache/媒体1.mp4` 3.6 MB。若后续接入 git，需配 `.gitignore` 或改用 Git LFS。
+
+---
+
+## 七、建议的修复顺序
+
+1. 改 `zh-cn.ts` / `zh-tw.ts` 页脚姓名 → 王炳琪
+2. 改 `CV.tsx` CEEDI 职位 → Architectural Designer
+3. `git init` + 写 `.gitignore`（`node_modules/`、`dist/`、`cache/`、`*.pdf`）
+4. README 移除明文密码，同步修正过时的目录说明
+5. 统一 studio 的 `site` 为 `studio.miki2022.eu.org`
+6. 改完执行 `npm run build`，把 `dist/` 重新上传 Cloudflare Pages
+
+> 上传流程（README 原文）：Cloudflare Dashboard → Workers & Pages → `wang-bingqi-portfolio` → Upload assets → 拖入 `dist/` → Deploy
