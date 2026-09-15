@@ -1,9 +1,13 @@
 # ===== 依赖 =====
 node_modules/
 
-# ===== 构建产物（上传 Cloudflare 用，可从源码重建）=====
+# ===== 构建产物（部署目标，可从源码重建）=====
 dist/
+dist.old-*/
 tsconfig.tsbuildinfo
+
+# ===== wrangler 本地状态 =====
+.wrangler/
 
 # ===== 素材缓存区（待处理，处理完清空）=====
 cache/

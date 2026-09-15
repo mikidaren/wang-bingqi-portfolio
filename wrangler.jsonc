@@ -1,0 +1,13 @@
+{
+  // 主站部署配置 —— Cloudflare Worker（静态资源）
+  // 部署：npm run build && npx wrangler deploy
+  // 自定义域名 miki2022.eu.org 已绑定此 Worker，部署同名 Worker 会自动保留域名绑定
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wang-bingqi-portfolio",
+  "compatibility_date": "2026-06-12",
+  "assets": {
+    "directory": "./dist",
+    // 与线上现状一致：找不到的路径返回真实 404（本项目为单页锚点导航，无客户端路由）
+    "not_found_handling": "none"
+  }
+}
