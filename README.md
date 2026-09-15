@@ -16,28 +16,37 @@
 
 ## 🚀 更新网站流程
 
-主站现在是 **Cloudflare Worker（静态资源）**，不是 Pages。部署配置见 `wrangler.jsonc`。
+主站是 **Cloudflare Worker（静态资源）**，不是 Pages。部署配置见 `wrangler.jsonc`。
 
 ```bash
 cd "E:\Code\项目1-作品集网站"
 
-# 1. 构建（vite 会先清空 dist/assets，若被沙箱批量删除保护拦截，
-#    先把 dist 改名再构建，见下方「已知坑」）
-npm run build
-
-# 2. 部署（Token 走环境变量，不要写进文件）
-export CLOUDFLARE_API_TOKEN="<Pages+Workers Edit Token>"
-export CLOUDFLARE_ACCOUNT_ID="ee13cd13d9cac16bbfd9c55478d676ae"
-npm run deploy
+npm run build     # 构建（见下方「已知坑（构建）」）
+npm run deploy    # 部署到 Worker
 ```
+
+`npm run deploy` 调用 `scripts/deploy.mjs`，它做四件事：
+
+1. **剥离 `http_proxy` / `https_proxy`** —— 不做这一步成功率极低，见下方「已知坑（部署）」
+2. **从 `C:\Users\mikid\.cloudflare-token` 读凭据**（`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`，每行一条 `KEY=VALUE`）。该文件在家目录、不在项目内，仓库是 public 所以**绝不能把 Token 写进项目**
+3. 调用 wrangler（`…\node\workspace\node_modules\wrangler\bin\wrangler.js`，可用环境变量 `WRANGLER_BIN` 覆盖）
+4. **内置重试 6 次**（上传通道抖动是常态），可用 `DEPLOY_ATTEMPTS=<n>` 调整
 
 成功标志：输出 `Deployed wang-bingqi-portfolio triggers` + 新 `Current Version ID`。
 自定义域名 `miki2022.eu.org` 绑定在 Worker 上，部署同名 Worker 会自动保留，无需重配 DNS。
 
 > ⚠️ **不要再用 Dashboard 的 Pages「Upload assets」流程** —— 账户下已无 `wang-bingqi-portfolio` 这个 **Pages** 项目（实测 404），拖上去不会有任何效果。
-> wrangler 装在隔离目录：`C:\Users\mikid\.workbuddy\binaries\node\workspace\node_modules\.bin\wrangler`
 
-**已上传资源按内容哈希去重**，第二次起只传变更文件。若资源上传阶段报 `fetch failed`（国内到 Cloudflare 上传通道抖动），直接重跑命令即可，已传的部分不会重传。
+**已知坑（部署）**：本机代理（Clash 类 TUN 模式）会注入 `http_proxy` / `https_proxy`，wrangler 检测到后会让 undici 走该 HTTP 代理，资源上传阶段报 `fetch failed`。2026-09-15 实测：带代理 8 次**全败**（每次约 55 秒），剥离代理后立即见效 —— 但剥离后仍会偶发失败，属通道本身抖动，**不是配置问题**。
+
+注意：同一端点用 curl（libcurl）走代理是正常的、2 秒返回 200，所以「curl 能通」**不能**证明 wrangler 能通（wrangler 用 undici，对小写代理变量与大 body 上传的处理不同）。诊断依据是 wrangler 自己的日志：
+
+```bash
+grep -i "proxy" "C:\Users\mikid\AppData\Roaming\xdg.config\.wrangler\logs\<最新日志>"
+# 出现 "Proxy environment variables detected" 即说明代理环境变量在起作用
+```
+
+**已上传资源按内容哈希去重**，第二次起只传变更文件（输出形如 `Uploaded 1 of 1 asset (53 already uploaded)`）。失败后**直接重跑**即可，已传的部分不会重传 —— 脚本已自动处理。
 
 ---
 
@@ -121,7 +130,9 @@ E:\Code\项目1-作品集网站\
 │   ├── feather*.webp            # 浮羽亭
 │   ├── bionic*.webp             # 仿生人类交流中心
 │   ├── housing*.webp            # 华富邨社区中心
-│   ├── thesis-*.webp / digifab-*.webp / kfs*.webp
+│   ├── thesis-*.webp            # 研究生毕设（M.Arch Final Project）4 张图
+│   ├── thesis-bridge.mp4        # 毕设斜拉桥渲染动画，排在这 4 张图之后
+│   ├── digifab-*.webp / kfs*.webp
 │   └── zou-jingyu.jpg / zheng-hao.jpg / li-dexin.jpg   # 导师照片
 ├── src/
 │   ├── App.tsx                  # 分节骨架（01–05）+ 滚动淡入
@@ -139,6 +150,8 @@ E:\Code\项目1-作品集网站\
 │       └── Footer.tsx           # 页脚
 ├── wang-bingqi-studio/      ← Studio 笔记子站（Astro + Decap CMS）
 ├── cache/                   ← 扔待处理项目素材，AI 处理完清空（已 gitignore）
+├── scripts/deploy.mjs       # 部署脚本：剥代理 + 读凭据 + 重试（npm run deploy 调用）
+├── wrangler.jsonc           # Worker 配置（name / assets.directory = ./dist）
 ├── miki的获奖图片/           # 原始获奖证书
 ├── miki的照片/               # 原始自拍
 ├── WANG Bingqi_CV.pdf       # 简历
@@ -169,7 +182,7 @@ find dist.old-* -type f -delete && find dist.old-* -depth -type d -empty -delete
 | Cloudflare **Worker** | `wang-bingqi-portfolio` → `miki2022.eu.org`（静态资源，无绑定） |
 | Cloudflare **Pages** | `wang-bingqi-studio` → `studio.miki2022.eu.org`（Decap CMS，接 GitHub 自动部署） |
 | GitHub | `mikidaren/wang-bingqi-portfolio`、`mikidaren/wang-bingqi-studio`（均 public） |
-| Vercel | `pascal-editor` → `editor.miki2022.eu.org`（**已从 Studio 移除入口，项目本身仍在**） |
+| Vercel | ~~`pascal-editor`~~ — **2026-09-15 已删除**，`editor.miki2022.eu.org` 的 DNS 记录同时清除；源码仍在 GitHub `mikidaren/editor`，需要时可在 Vercel 重新导入 |
 
 ---
 

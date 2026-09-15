@@ -47,24 +47,32 @@ vite 构建前要清空 `dist/assets`，53 个文件超过沙箱批量删除保�
 
 ```bash
 cd "E:\Code\项目1-作品集网站"
-npm run build                     # 见上方沙箱踩坑处理
-export CLOUDFLARE_API_TOKEN="<Token B>"
-export CLOUDFLARE_ACCOUNT_ID="ee13cd13d9cac16bbfd9c55478d676ae"
-npm run deploy                    # = wrangler deploy，读项目根 wrangler.jsonc
+npm run build      # 见上方沙箱踩坑处理
+npm run deploy     # = node scripts/deploy.mjs
 ```
+
+`scripts/deploy.mjs`（2026-09-15 新增）做三件事，**不要绕开它直接跑 wrangler**：
+
+1. **剥离 `http_proxy` / `https_proxy` / `all_proxy`** —— 见下方踩坑
+2. 凭据兜底：环境变量 → `C:\Users\mikid\.cloudflare-token`（家目录，`KEY=VALUE` 每行一条，不进 git）
+3. 内置重试 6 次（`DEPLOY_ATTEMPTS` 可调）
 
 - `wrangler.jsonc`：`name: wang-bingqi-portfolio`、`compatibility_date: 2026-06-12`、`assets.directory: ./dist`、`assets.not_found_handling: none`
 - Worker **无任何绑定**（无 KV/D1/R2），覆盖静态资源不会破坏逻辑
 - 自定义域名 `miki2022.eu.org` 绑在 Worker 上，部署同名 Worker 自动保留，**无需动 DNS**
-- wrangler 路径：`C:\Users\mikid\.workbuddy\binaries\node\workspace\node_modules\wrangler\bin\wrangler.js`（托管目录，未污染全局 npm）
+- wrangler 路径：`C:\Users\mikid\.workbuddy\binaries\node\workspace\node_modules\wrangler\bin\wrangler.js`（托管目录，未污染全局 npm，可用 `WRANGLER_BIN` 覆盖）
 - 成功标志：`Deployed wang-bingqi-portfolio triggers` + 新 `Current Version ID`
 
-### 部署网络踩坑（重要）
+### 部署踩坑：代理环境变量导致上传必失败（2026-09-15 定论）
 
-资源上传阶段可能报 `fetch failed`（端点 `.../workers/scripts/<name>/assets-upload-session`），2026-09-15 首次连续失败 4 次、第 5 次成功。**根因是国内到 Cloudflare 上传通道间歇性抖动，不是配置问题**（同端点 Node 直测 2 秒 200，wrangler 侧 22 秒超时）。
+资源上传阶段报 `fetch failed`（端点 `.../workers/scripts/<name>/assets-upload-session`）。**真因是代理环境变量，不是「玄学抖动」**：
 
-- 环境：`api.cloudflare.com` 被代理软件解析到 fake-IP `198.18.0.160`（Clash 类 TUN 模式），无 IPv6。
-- **资源按内容哈希去重，重跑只传缺失部分**（实测输出 `Uploaded 18 of 18 assets (35 already uploaded)`），所以**直接重跑 `npm run deploy` 即可**，别改配置。可设 `WRANGLER_SEND_METRICS=false` 减少干扰遥测。
+- 本机运行 Clash 类 TUN 代理时会注入 `http_proxy` / `https_proxy`（`127.0.0.1:10163`）。wrangler 检测到后让 undici 走该 HTTP 代理，资源上传**连败 8 次**（每次约 55 秒）。
+- 剥离代理后**首次即成功**；但剥离后仍会偶发失败（真抖动），所以脚本内置重试。
+- 日志判据：`grep -i proxy "C:\Users\mikid\AppData\Roaming\xdg.config\.wrangler\logs\<最新日志>"`，命中 `Proxy environment variables detected` 即坐实。
+- ⚠️ **别用 curl 判断通道是否正常**：curl 走 libcurl、读代理的方式与 undici 不同，同端点 curl 带代理 2.1 秒返回 200，而 wrangler 同环境必败。「curl 能通」证明不了 wrangler 能通。
+- 环境：`api.cloudflare.com` 被解析到 fake-IP `198.18.0.x`（TUN 模式）；剥离代理后仍经 TUN 直连，可达性不受影响。
+- **资源按内容哈希去重**，重跑只传缺失部分（`Uploaded 1 of 1 asset (53 already uploaded)`），所以重跑永远安全。
 
 ### 常用诊断命令
 
@@ -122,7 +130,7 @@ curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/wo
 ## Studio 子站（2026-09-15 改造）
 
 - **Grasshopper 模块**：`/grasshopper` 页面（`src/pages/grasshopper/index.astro`，页首 `definitions` 数组维护条目）+ `public/grasshopper/` 下 3 个 `.gh`（`facade-4in1-skin` / `curtain-wall-stone-joint` / `bridge-parametric`）与 2 张预览图。**文件名统一 ASCII**，中文名写在页面 `title`。
-- **Pascal Editor 已从 Studio 移除**：`Base.astro` 顶部 Tools 下拉删除、`global.css` 清理 `.top-bar-tools/.tools-trigger/.tools-menu`、导航加入 Grasshopper。**但 Vercel 上 `pascal-editor` 项目仍在**（`editor.miki2022.eu.org` 仍可访问），要彻底下线需去 Vercel 删项目。
+- **Pascal Editor 已彻底下线（2026-09-15）**：Studio 侧删除 `Base.astro` 顶部 Tools 下拉、`global.css` 清理 `.top-bar-tools/.tools-trigger/.tools-menu`；Vercel 项目 `pascal-editor` 已删除（HTTP 204），`editor.miki2022.eu.org` 的 CNAME 记录同步从 Cloudflare 移除，域名已无法解析。源码仍在 GitHub `mikidaren/editor`（public），需要时可在 Vercel 重新导入。
 - Studio README 域名已统一为 `studio.miki2022.eu.org`（原 `wangbingqi.eu.org` 已作废）。
 
 ## 凭据位置

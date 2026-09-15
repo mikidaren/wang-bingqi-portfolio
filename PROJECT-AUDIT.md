@@ -391,6 +391,83 @@ error: RPC failed; curl 7 CONNECT tunnel failed, response 502
 ### 10.8 待办
 
 1. **主站不会自动部署**：push 后仍需 `npm run build && npm run deploy`（Worker 侧未接 Git）。
-2. **Vercel `pascal-editor` 项目仍在**：本次只移除了 Studio 里的入口链接，`editor.miki2022.eu.org` 本身还能访问。要彻底下线需去 Vercel 删除项目。
-3. Cache 目录中未推送的文件（第三方插件、mp4）如需处理请明示。
+2. Cache 目录中未推送的文件（第三方插件）如需处理请明示。
+
+---
+
+## 十一、视频上站 + Pascal 彻底下线 + 部署真因更正（2026-09-15 已完成 ✅）
+
+### 11.1 研究生毕设视频上站
+
+用户说明：`cache/媒体1.mp4` 的内容是**桥**，即研究生毕设。要求排在该项目 **4 张图之后**。
+
+| 项 | 处理 |
+|---|---|
+| 落点识别 | 「4 张图」= `thesis-1~4.webp`，对应 `Projects.tsx` 中 `id: 'thesis'` 的 `M.Arch Final Project` |
+| 文件归置 | `cache/媒体1.mp4` → `public/assets/thesis-bridge.mp4`（3,631,638 B / 3.46 MB，H.264 `avc1` + AAC `mp4a`，容器 `isom`，可直接 `<video>` 播放） |
+| 数据结构 | `interface Project` 新增可选 `video?: string`；`thesis` 设 `video: '/assets/thesis-bridge.mp4'` |
+| 渲染 | `Projects.tsx` 在 `images.map()` 之后插入视频块（同款 `max-w-5xl mx-auto px-6 my-6` + `framer-motion` 淡入），`controls autoPlay muted loop playsInline preload="metadata"`，不接入 lightbox（lightbox 索引只走 `images`） |
+| 类型检查 | `npx tsc -b` 通过 |
+
+> ⚠️ 该条目 `title` 仍是 `M.Arch Final Project`、`description` 未提「桥」。用户已说明内容是桥，但**未授权改标题/描述**，故只加视频、未改文案。
+
+### 11.2 Pascal Editor 彻底下线
+
+上一轮只移除了 Studio 里的入口链接，`editor.miki2022.eu.org` 仍可访问。本轮彻底下线：
+
+| 步骤 | 结果 |
+|---|---|
+| 删除 Vercel 项目 `pascal-editor`（`prj_fMgRW3VVf1kFmm0G785ORZeOVHIB`） | `DELETE /v9/projects/{id}` → **HTTP 204**；账户下只剩 `project-nydom` |
+| 删除 Cloudflare DNS 记录 `editor.miki2022.eu.org` | `CNAME → cname.vercel-dns.com`（proxied，id `271801047178340fed80df6c6eddec83`）已删 |
+| 下线核验 | DNS 无法解析、HTTPS 请求失败；`studio` 与主站根域不受影响 |
+
+**源码未丢**：`pascal-editor` 是 Vercel 从 GitHub `mikidaren/editor`（public，125 MB）自动部署的，删除 Vercel 项目不影响仓库，需要时重新导入即可。
+
+DNS 记录原值已记录在案（上方表格），恢复只需重建一条 **CNAME `editor` → `cname.vercel-dns.com`，proxied**。删除前已对 zone 内全部 3 条记录做过快照。
+
+### 11.3 部署 `fetch failed` 真因更正（重要）
+
+**上一节（9.5 / 10.5）把它归因为「网络抖动」，不准确。** 本轮实测定位到真正的主因：**代理环境变量**。
+
+| 实验 | 结果 |
+|---|---|
+| 带 `http_proxy`/`https_proxy` 部署 | **8 次全败**，每次约 55 秒，全部卡在 `POST .../assets-upload-session` |
+| 剥离代理后部署 | **首次即成功**（版本 `506ceda0`） |
+| 剥离代理后再跑 | 第 1 次失败、第 2 次（重用新脚本）成功 → 存在真实抖动，但概率大幅下降 |
+
+判据（wrangler 自己的日志）：
+
+```
+grep -i "proxy" "C:\Users\mikid\AppData\Roaming\xdg.config\.wrangler\logs\<最新日志>"
+# Proxy environment variables detected. We'll use your proxy for fetch requests.
+```
+
+⚠️ **教训：不要用 curl 判断通道是否正常。** curl 走 libcurl、对 `http_proxy` 的处理方式与 Node 的 undici 不同 —— 同一端点 curl 带代理 **2.1 秒返回 200**，而**同环境下 wrangler 必败**。上一节据此得出「Node 通道偶发不稳、网络本身没问题」的结论，方向被带偏了。区分方法：只看 wrangler 日志，不要拿别的 HTTP 客户端的表现类推。
+
+### 11.4 把对策固化成脚本
+
+新增 `scripts/deploy.mjs`，`package.json` 的 `deploy` 改为 `node scripts/deploy.mjs`：
+
+1. **剥离** `http_proxy` / `https_proxy` / `all_proxy`（及大写形式；Windows 环境变量名大小写不敏感）
+2. **凭据兜底**：环境变量 → `C:\Users\mikid\.cloudflare-token`（家目录，`KEY=VALUE` 每行一条，不进 public 仓库）
+3. **内置重试 6 次**（`DEPLOY_ATTEMPTS` 可调，间隔 3–15 秒递增）
+
+资源按内容哈希去重，重试不重传，所以重试是零风险操作。
+
+**验证**：`npm run deploy -- --dry-run`（脚本逻辑 ✓，凭据从家目录载入 ✓，代理剥离 ✓）；`npm run deploy` 端到端一次通过（版本 `e6cbb408`）。
+
+### 11.5 线上验证结果
+
+| 项 | 结果 |
+|---|---|
+| 线上 bundle | `index-DmmACne-.js` == 本地构建 ✅ |
+| 视频 | HTTP 200 / 3,631,638 B / **MD5 `d4a592720e39db323f49ad0760430ff6` 与源文件逐字节一致** / `Content-Type: video/mp4` ✅ |
+| 产物中引用 | `thesis-bridge.mp4` 1 处、`playsInline` 2 处 ✅ |
+| 既有修复未被回退 | `王炳琪` 2 处、`Assistant Architect` 2 处、`GBA Urban` 0 处 ✅ |
+| 其他资源 | `/`、`/favicon.svg`、`/assets/thesis-4.webp`、`/assets/feather28.webp` 全 200 ✅ |
+
+### 11.6 待办
+
+1. 若要让访客一眼看出毕设是「参数化斜拉桥」，需改 `thesis` 条目的 `title` / `description`（**等用户拍板**）。
+2. Cache 目录中未推送的第三方插件（AeroField / GG Sculpting）如需处理请明示。
 

@@ -10,6 +10,8 @@ interface Project {
   year: string;
   description: string;
   images: string[];
+  /** 可选：置于图片序列之后的视频（如渲染动画、过程记录） */
+  video?: string;
   tags: string[];
 }
 
@@ -82,6 +84,7 @@ const projects: Project[] = [
       '/assets/thesis-1.webp', '/assets/thesis-2.webp', '/assets/thesis-3.webp',
       '/assets/thesis-4.webp',
     ],
+    video: '/assets/thesis-bridge.mp4',
     tags: ['Thesis', 'Graduate', 'CityU'],
   },
 ];
@@ -326,6 +329,29 @@ export default function Projects() {
                 />
               </motion.div>
             ))}
+
+            {/* Video — placed after the image cascade (thesis render animation) */}
+            {activeProject.video && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.5 }}
+                className="max-w-5xl mx-auto px-6 my-6"
+              >
+                <video
+                  src={activeProject.video}
+                  className="w-full object-contain"
+                  style={{ maxHeight: '75vh' }}
+                  controls
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                />
+              </motion.div>
+            )}
 
             <div className="h-32" />
 
