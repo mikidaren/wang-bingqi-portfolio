@@ -60,8 +60,29 @@ cd "E:\Code\项目1-作品集网站" && git add -A && git commit -m "..." && git
 cd "E:\Code\项目1-作品集网站\wang-bingqi-studio" && git add -A && git commit -m "..." && git push
 ```
 
-凭据存在 `C:\Users\mikid\.git-credentials`（家目录，不在项目内），两个仓库都设了仓库级 `credential.helper=store`。
-**remote URL 里不含 Token**，别把 Token 拼进 URL。
+凭据存在 `C:\Users\mikid\.git-credentials`（家目录，不在项目内）。
+
+**凭据助手配置（2026-09-15 修过一次弹窗，别乱动）**：本机 PortableGit 的系统级配置里有
+`credential.helper = helper-selector`（GCM 的"选择器"模式），**任何时候只要 helper 列表里不止它一个，它就会弹 GUI 框问你要用哪个 helper**。
+
+修法是在全局用**空值重置**清掉继承链（git 官方语义：空字符串会把此前累积的 helper 列表整个清空）：
+
+```ini
+# ~/.gitconfig
+[credential]
+	helper =          # 重置：干掉系统级的 helper-selector
+	helper = store    # 只留 store，凭据读 ~/.git-credentials
+```
+
+⚠️ **不要在仓库级再写 `credential.helper`** —— 重复条目会把弹窗重新唤醒。
+**remote URL 里也不要嵌 Token**，别把 Token 拼进 URL。
+
+验证方式：
+
+```bash
+printf "protocol=https\nhost=github.com\n\n" | GIT_TRACE=1 git credential fill 2>&1 | grep run_command
+# 期望只出现 git credential-store get；出现 git-credential-manager / helper-selector 就是没修好
+```
 
 > 网络抖动（代理环境）：报 `schannel: failed to receive handshake`、`Empty reply from server`、`RPC failed; curl 55` 这类错误都是抖动，**直接重推**即可。判断成功要看 `git ls-remote origin refs/heads/main` 是否等于 `git rev-parse HEAD`，别信退出码。
 

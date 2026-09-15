@@ -87,9 +87,29 @@ curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/wo
 | `mikidaren/wang-bingqi-studio` | Studio 子站（public） | **自动部署**（Pages 接 GitHub，push main 即构建上线） |
 
 - 仓库级 identity：`WANG Bingqi` / `mikidaren@gmail.com`（全局配置为空，未改动）
-- 凭据：`C:\Users\mikid\.git-credentials`（家目录），两仓库各设**仓库级** `credential.helper=store`（全局是交互式 `git-credential-manager.exe`，自动化下不可用）
+- 凭据：`C:\Users\mikid\.git-credentials`（家目录）
+- **凭据助手必须只在全局配，且带空值重置**（否则弹窗）：
+  ```ini
+  # ~/.gitconfig
+  [credential]
+  	helper =           # 空值＝重置，干掉 PortableGit 系统级的 helper-selector
+  	helper = store
+  ```
+  ⚠️ **不要在仓库级写 `credential.helper`** —— 会唤醒 GCM 的选择器弹窗（2026-09-15 踩过，见下）
 - **remote URL 内不嵌 Token**；`gh` CLI 未安装，建仓走 REST API
 - Studio 远端原有 9 次提交（`4f5820c0`），本地为独立历史 → 用 **`git reset --soft <远端SHA>` + 一次提交** 接入（线性 fast-forward，未 force push，远端历史完整保留）
+
+### ⚠️ 弹窗事故：CredentialHelperSelector（2026-09-15 已修）
+
+现象：Windows 反复弹出小窗「Select a credential helper / `<no helper>` / manager / wincred」。
+
+根因：PortableGit 的**系统级** `etc/gitconfig` 里有 `credential.helper = helper-selector`（GCM 选择器模式），它在每次取凭据时检查 helper 列表，**只要列表里不止它一个就弹框**。当时我在**仓库级**加了一条 `credential.helper=store`，列表变成 `[helper-selector, GCM, store]` → 触发弹窗。
+
+修法：全局写**空值重置**（git 语义：空字符串清空此前累积的 helper 列表），只留 `store`；同时删除两个仓库的仓库级 `credential.helper`，并删掉 `credential.helperselector.selected`。
+
+铁证：`printf "protocol=https\nhost=github.com\n\n" | GIT_TRACE=1 git credential fill 2>&1 | grep run_command` → **只出现 `git credential-store get`**，无 `git-credential-manager` / `helper-selector`。
+
+备份：`~/.gitconfig.bak-20260915`
 
 ### GitHub 推送踩坑
 

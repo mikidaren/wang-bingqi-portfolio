@@ -359,7 +359,36 @@ error: RPC failed; curl 7 CONNECT tunnel failed, response 502
   → 绕法：不用远程跟踪引用，直接 `SHA=$(awk '{print $1}' .git/FETCH_HEAD | head -1)` 拿 SHA 操作。
 - 往 `/tmp` 落盘被拦 → 用项目内临时目录或直接管道输出。
 
-### 10.7 待办
+### 10.7 修掉 Git 凭据助手弹窗（用户报障）
+
+现象：Windows 反复弹出「Select a credential helper / `<no helper>` / manager / wincred」小窗。
+
+根因（`git config --list --show-origin | grep credential` 一次定位）：
+
+```
+系统级  credential.helper=helper-selector      ← PortableGit/etc/gitconfig 自带，元凶
+全局级  credential.helper=!...git-credential-manager.exe
+仓库级  credential.helper=store                ← 本次 git 初始化时加的，触发了弹窗
+```
+
+`helper-selector` 是 GCM 的选择器模式，helper 列表里不止它一个就弹框。git 的 helper 列表跨层级累加，加了仓库级 `store` 后变成 `[helper-selector, GCM, store]` → 弹窗。
+
+修法（依据 git 官方语义：`credential.helper` **空字符串会清空此前累积的 helper 列表**）：
+
+```ini
+# ~/.gitconfig
+[credential]
+	helper =          # 重置，干掉系统级 helper-selector
+	helper = store
+```
+
+同时删除两个仓库的仓库级 `credential.helper` 与 `credential.helperselector.selected`。备份 `~/.gitconfig.bak-20260915`。
+
+铁证：`GIT_TRACE=1 git credential fill` 只出现 `git credential-store get`，`git-credential-manager` / `helper-selector` 调用 **0 次**。
+
+⚠️ **后续不要在仓库级再写 `credential.helper`** —— 重复条目会重新唤醒弹窗。
+
+### 10.8 待办
 
 1. **主站不会自动部署**：push 后仍需 `npm run build && npm run deploy`（Worker 侧未接 Git）。
 2. **Vercel `pascal-editor` 项目仍在**：本次只移除了 Studio 里的入口链接，`editor.miki2022.eu.org` 本身还能访问。要彻底下线需去 Vercel 删除项目。
