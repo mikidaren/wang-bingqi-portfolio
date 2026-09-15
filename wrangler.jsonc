@@ -1,7 +1,8 @@
 {
   // 主站部署配置 —— Cloudflare Worker（静态资源）
-  // 部署：npm run build && npx wrangler deploy
+  // 部署：npm run build && npm run deploy
   // 自定义域名 miki2022.eu.org 已绑定此 Worker，部署同名 Worker 会自动保留域名绑定
+  // compatibility_date 沿用线上原值（2026-06-12），最小改动；本 Worker 无绑定、无脚本逻辑
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "wang-bingqi-portfolio",
   "compatibility_date": "2026-06-12",
