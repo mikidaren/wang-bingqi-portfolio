@@ -32,3 +32,7 @@ __pycache__/
 Thumbs.db
 *.local
 *.log
+
+# ===== 私人域名管理脚本（不公开）=====
+check_nic.py
+submit_domain.py
